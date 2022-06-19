@@ -1,0 +1,3 @@
+LIBRARY PriDLL
+EXPORTS
+  DetourFinishHelperProcess
