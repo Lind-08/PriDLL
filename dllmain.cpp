@@ -106,10 +106,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         DetourRestoreAfterWith();
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&TrueCreateFileW, TramplinedCreateFileW);
-        DetourAttach(&TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
-        DetourAttach(&TrueOpenPrinterW, TramplinedOpenPrinterW);
-        DetourAttach(&TrueEnumPrintersW, TramplinedEnumPrintersW);
+        DetourAttach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
+        DetourAttach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
+        DetourAttach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
+        DetourAttach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
         if(DetourTransactionCommit() == NO_ERROR)
         {
             OutputDebugStringW(L"CreateFileW detoured successfully");
@@ -121,10 +121,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_PROCESS_DETACH:
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&TrueCreateFileW, TramplinedCreateFileW);
-        DetourDetach(&TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
-        DetourDetach(&TrueEnumPrintersW, TramplinedEnumPrintersW);
-        DetourDetach(&TrueOpenPrinterW, TramplinedOpenPrinterW);
+        DetourDetach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
+        DetourDetach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
+        DetourDetach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
+        DetourDetach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
         DetourTransactionCommit();
 
         break;
