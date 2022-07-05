@@ -1,3 +1,3 @@
 LIBRARY PriDLL
 EXPORTS
-  DetourFinishHelperProcess
+  DetourFinishHelperProcess @1

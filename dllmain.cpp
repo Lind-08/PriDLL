@@ -1,6 +1,6 @@
 ﻿#include "framework.h"
 
-HMODULE hWinspool;
+bool flag = false;
 
 HANDLE (WINAPI *TrueCreateFileW)(
 LPCWSTR               lpFileName,
@@ -45,6 +45,9 @@ BOOL (WINAPI *TrueOpenPrinterW)(
     LPPRINTER_DEFAULTS pDefault
 );
 
+HMODULE (WINAPI *TrueLoadLibraryW)(
+    LPCWSTR lpLibFileName
+) = LoadLibraryW;
 
 BOOL WINAPI TramplinedEnumPrintersW(
     DWORD   Flags,
@@ -79,6 +82,60 @@ BOOL WINAPI TramplinedOpenPrinterW(
     return TrueOpenPrinterW(pPrinterName, phPrinter, pDefault);
 }
 
+
+
+void AttachHooks()
+{
+    DetourRestoreAfterWith();
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
+    DetourAttach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
+    DetourAttach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
+    if(DetourTransactionCommit() == NO_ERROR)
+    {
+        OutputDebugStringW(L"GetDefaultPrinterW detoured successfully");
+        OutputDebugStringW(L"OpenPrinterW detoured successfully");
+        OutputDebugStringW(L"EnumPrintersW detoured successfully");
+    }
+}
+
+void DetachHooks()
+{
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourDetach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
+    DetourDetach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
+    DetourDetach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
+    DetourTransactionCommit();
+}
+
+HMODULE WINAPI TramplinedLoadLibraryW (
+    LPCWSTR lpLibFileName
+)
+{
+    OutputDebugStringW(L"TramplinedLoadLibraryW invoked");
+    OutputDebugStringW((std::wstring(L"LibFileName: ") + std::wstring(lpLibFileName)).c_str());
+    std::wstring libFileName(lpLibFileName);
+    if (libFileName.find(L"winspool.drv") != std::wstring::npos)
+    {
+        if (!flag)
+        {
+            auto hModule = TrueLoadLibraryW(lpLibFileName);
+            if (hModule)
+            {
+                TrueGetDefaultPrinterW = (BOOL (WINAPI*)(LPTSTR, LPDWORD))GetProcAddress(hModule, "GetDefaultPrinterW");
+                TrueEnumPrintersW = (BOOL (WINAPI *)(DWORD, LPTSTR, DWORD, LPBYTE, DWORD, LPDWORD, LPDWORD ))GetProcAddress(hModule, "EnumPrintersW");
+                TrueOpenPrinterW = (BOOL (WINAPI *)(LPTSTR, LPHANDLE, LPPRINTER_DEFAULTS)) GetProcAddress(hModule, "OpenPrinterW");
+                AttachHooks();
+                flag = true;
+            }
+            return hModule;
+        }
+    }
+    return TrueLoadLibraryW(lpLibFileName);
+};
+
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
@@ -88,7 +145,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         return TRUE;
     }
     DisableThreadLibraryCalls(hModule);
-    hWinspool = LoadLibraryW(L"Winspool.drv");
+    /*hWinspool = LoadLibraryW(L"Winspool.drv");
     if (!hWinspool)
     {
         OutputDebugStringW(L"Can't load winspool.drv");
@@ -98,7 +155,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     TrueGetDefaultPrinterW = (BOOL (WINAPI*)(LPTSTR, LPDWORD))GetProcAddress(hWinspool, "GetDefaultPrinterW");
     TrueEnumPrintersW = (BOOL (WINAPI *)(DWORD, LPTSTR, DWORD, LPBYTE, DWORD, LPDWORD, LPDWORD ))GetProcAddress(hWinspool, "EnumPrintersW");
     TrueOpenPrinterW = (BOOL (WINAPI *)(LPTSTR, LPHANDLE, LPPRINTER_DEFAULTS)) GetProcAddress(hWinspool, "OpenPrinterW");
-
+    */
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
@@ -106,30 +163,32 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         DetourRestoreAfterWith();
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
-        DetourAttach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
-        DetourAttach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
-        DetourAttach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
+        //DetourAttach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
+        DetourAttach(&(PVOID&)TrueLoadLibraryW, TramplinedLoadLibraryW);
+        //DetourAttach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
+        //DetourAttach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
+        //DetourAttach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
         if(DetourTransactionCommit() == NO_ERROR)
         {
-            OutputDebugStringW(L"CreateFileW detoured successfully");
-            OutputDebugStringW(L"GetDefaultPrinterW detoured successfully");
-            OutputDebugStringW(L"OpenPrinterW detoured successfully");
-            OutputDebugStringW(L"EnumPrintersW detoured successfully");
+            //OutputDebugStringW(L"CreateFileW detoured successfully");
+            OutputDebugStringW(L"LoadLibraryW detoured successfully");
+            //OutputDebugStringW(L"GetDefaultPrinterW detoured successfully");
+            //OutputDebugStringW(L"OpenPrinterW detoured successfully");
+            //OutputDebugStringW(L"EnumPrintersW detoured successfully");
         }
         break;
     case DLL_PROCESS_DETACH:
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
-        DetourDetach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
-        DetourDetach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
-        DetourDetach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
+        //DetourDetach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
+        DetourDetach(&(PVOID&)TrueLoadLibraryW, TramplinedLoadLibraryW);
+        //DetourDetach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
+        //DetourDetach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
+        //DetourDetach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
         DetourTransactionCommit();
-
+        DetachHooks();
         break;
     }
-    FreeLibrary(hWinspool);
     return TRUE;
 }
 
