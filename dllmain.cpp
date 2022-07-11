@@ -145,17 +145,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         return TRUE;
     }
     DisableThreadLibraryCalls(hModule);
-    /*hWinspool = LoadLibraryW(L"Winspool.drv");
-    if (!hWinspool)
-    {
-        OutputDebugStringW(L"Can't load winspool.drv");
-        return TRUE;
-    }
-
-    TrueGetDefaultPrinterW = (BOOL (WINAPI*)(LPTSTR, LPDWORD))GetProcAddress(hWinspool, "GetDefaultPrinterW");
-    TrueEnumPrintersW = (BOOL (WINAPI *)(DWORD, LPTSTR, DWORD, LPBYTE, DWORD, LPDWORD, LPDWORD ))GetProcAddress(hWinspool, "EnumPrintersW");
-    TrueOpenPrinterW = (BOOL (WINAPI *)(LPTSTR, LPHANDLE, LPPRINTER_DEFAULTS)) GetProcAddress(hWinspool, "OpenPrinterW");
-    */
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
@@ -163,28 +152,16 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         DetourRestoreAfterWith();
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        //DetourAttach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
         DetourAttach(&(PVOID&)TrueLoadLibraryW, TramplinedLoadLibraryW);
-        //DetourAttach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
-        //DetourAttach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
-        //DetourAttach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
         if(DetourTransactionCommit() == NO_ERROR)
         {
-            //OutputDebugStringW(L"CreateFileW detoured successfully");
             OutputDebugStringW(L"LoadLibraryW detoured successfully");
-            //OutputDebugStringW(L"GetDefaultPrinterW detoured successfully");
-            //OutputDebugStringW(L"OpenPrinterW detoured successfully");
-            //OutputDebugStringW(L"EnumPrintersW detoured successfully");
         }
         break;
     case DLL_PROCESS_DETACH:
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        //DetourDetach(&(PVOID&)TrueCreateFileW, TramplinedCreateFileW);
         DetourDetach(&(PVOID&)TrueLoadLibraryW, TramplinedLoadLibraryW);
-        //DetourDetach(&(PVOID&)TrueGetDefaultPrinterW, TramplinedGetDefaultPrinterW);
-        //DetourDetach(&(PVOID&)TrueEnumPrintersW, TramplinedEnumPrintersW);
-        //DetourDetach(&(PVOID&)TrueOpenPrinterW, TramplinedOpenPrinterW);
         DetourTransactionCommit();
         DetachHooks();
         break;
